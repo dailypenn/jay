@@ -1,7 +1,6 @@
 const http = require('http')
 const express = require('express')
 const querystring = require('querystring')
-const axios = require('axios')
 const {
     ApolloServer,
     PubSub,
@@ -21,7 +20,7 @@ const typeDefs = gql`
 
     type Query {
         article(slug: String) : Article
-        articles(first: Int, cursor: String, section: String): Articles
+        articles(first: Int, cursor: String, section: String): ArticleInfo
     }
 
     type Article {
@@ -31,8 +30,7 @@ const typeDefs = gql`
         content: String
     }
 
-    type Articles {
-        totalCount: Int
+    type ArticleInfo {
         edges: [ArticleNode]
         hasNextPage: Boolean
     }
@@ -48,47 +46,58 @@ const typeDefs = gql`
 // use the         "modified_at": "2018-08-17 14:51:32",
 // property of the response from /section/{slug}
 
-const DEFAULT_PAGE = 10;
+const DEFAULT_PAGE = 50;
 
 class ContentAPI extends RESTDataSource {
     constructor() {
         super();
-        this.baseURL = `https://thedp.com/article/`
+        this.baseURL = `https://thedp.com/`
     }
 
     async getArticle(slug) {
-        const { article } = (await this.get(`${slug}.json`)) || {}
+        const { article } = (await this.get(`article/${slug}.json`)) || {}
         return article
     }
 
-    async getArticles(cursor, first = 5, section = `news`) {
-        const queryString = (new Buffer(cursor)).toString();
-        const { section: cursorSection, rawIndex } = querystring.decode(queryString);
-        
+    async getArticles(cursor = "", first = 5, section = `news`) {
+        const queryString = (new Buffer(cursor, 'base64')).toString('ascii');
+        const { section: cursorSection, index: rawIndex = 0 } = querystring.decode(queryString);
         // Make sure the cursorSection and section are the same, pagination is borked otherwise
-        if (cursorSection !== section) {
-            throw new UserInputError(`Cursor section ${cursorSection} and requested section ${section} do not match!`)
-        }
+        if (cursorSection && cursorSection !== section) throw new UserInputError(`Cursor section ${cursorSection} and requested section ${section} do not match!`)
         const index = parseInt(rawIndex)
         // Make sure the index is a valid int
-        if (isNaN(index)) {
-            throw new UserInputError(`Index ${rawIndex} is not an integer!`)
-        }
-        
-        const pageSize = Math.max(first, DEFAULT_PAGE)
-        let currPage = Math.floor(index / pageSize)
-        const pageOffset = index % currPage;
+        if (isNaN(index)) throw new UserInputError(`Index ${rawIndex} is not an integer!`)
+
+        // TODO: optimize pagination
+        const pageSize = DEFAULT_PAGE
+        let currPage = Math.floor(index / pageSize) + 1
+        let pageOffset = index % pageSize;
 
         const articles = []
         do {
+            const ceoQuery = querystring.encode({
+                page: currPage,
+                per_page: pageSize
+            })
+            const { articles: pageArticles } = (await this.get(`section/${section}.json?${ceoQuery}`)) || {}
+            pageArticles.slice(pageOffset).forEach(el => {
+                if (articles.length < first) articles.push(el)
+            });
+            currPage += 1;
+            pageOffset = 0;
+        } while (articles.length < first)
 
-        } while ()
-        const ceoQuery = querystring.encode({
-            page: currPage,
-            per_page: pageSize
-        })
-        const { articles } = (await this.get(`${section}.json?${ceoQuery}`)) || {}
-        return articles;
+        // TODO: actually check if there's a next page
+        return {
+            edges: articles.map((el, idx) => ({
+                article: el,
+                cursor: (new Buffer(querystring.encode({
+                    section,
+                    index: index + idx + 1
+                }))).toString('base64')
+            })),
+            hasNextPage: true
+        }
     }
 }
 
@@ -100,7 +109,7 @@ const resolvers = {
     },
     Query: {
         article: async (_, { slug }, { dataSources }) => dataSources.contentAPI.getArticle(slug),
-        articles: async (_, { cursor = null, first, section }, { dataSources }) => {
+        articles: async (_, { cursor, first, section }, { dataSources }) => {
             return dataSources.contentAPI.getArticles(cursor, first, section)
         }
     }
