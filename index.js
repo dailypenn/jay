@@ -108,29 +108,8 @@ const resolvers = {
 
 // REST routes
 const app = express();
-app.use(express.json());
-
-
-// Middleware to disable CORS
-app.get('/*', (_, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*')
-    next()
-})
-
-// Request the data from the url and return it
-app.get('/fetch', async ({ query: { url = '' } }, res) => {
-    try {
-        if (!url) throw new Error('No url param found in query')
-        const { data } = await axios.get(url)
-        res.json(data)
-    } catch (e) {
-        console.log(`Error occurs at this url: ${url}`)
-        console.log(`Error: ${e}`)
-    }
-})
 
 app.post('/connector', async (req, res) => {
-    console.log(req.body, typeof req.body)
     // TODO: JWT Auth
     await pubsub.publish(ARTICLE_EDITED, { articleEdited: req.body })
     res.send("nice")
