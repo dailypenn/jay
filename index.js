@@ -23,11 +23,18 @@ const typeDefs = gql`
         articles(first: Int, cursor: String, section: String): ArticleInfo
     }
 
+    type DominantMedia {
+        attachment_uuid: String
+        extension: String
+    }
+
     type Article {
         slug: String
         headline: String
         abstract: String
         content: String
+        published_at: String
+        dominantMedia: DominantMedia
     }
 
     type ArticleInfo {
