@@ -46,7 +46,7 @@ const typeDefs = gql`
 // use the         "modified_at": "2018-08-17 14:51:32",
 // property of the response from /section/{slug}
 
-const DEFAULT_PAGE = 50;
+const DEFAULT_PAGE = 50
 
 class ContentAPI extends RESTDataSource {
     constructor() {
@@ -82,9 +82,9 @@ class ContentAPI extends RESTDataSource {
             const { articles: pageArticles } = (await this.get(`section/${section}.json?${ceoQuery}`)) || {}
             pageArticles.slice(pageOffset).forEach(el => {
                 if (articles.length < first) articles.push(el)
-            });
-            currPage += 1;
-            pageOffset = 0;
+            })
+            currPage += 1
+            pageOffset = 0
         } while (articles.length < first)
 
         // TODO: actually check if there's a next page
@@ -135,8 +135,8 @@ const server = new ApolloServer({
 })
 
 server.applyMiddleware({ app })
-const httpServer = http.createServer(app);
-server.installSubscriptionHandlers(httpServer);
+const httpServer = http.createServer(app)
+server.installSubscriptionHandlers(httpServer)
 
 httpServer.listen(5000, () => {
     console.log(`Server ready at port 5000 ${server.graphqlPath}`)

@@ -1,7 +1,14 @@
-# Development
-run npm start bud, explorer is at localhost:5000/graphql
+# Why Jay
+We are in the process of transitioning to the convention of naming our projects by bird names.
+Starting with Canada Goose for mobile, we are naming the graphQL backend by jay for two reasons (according to @dtao).
+- Blue Jay is a bird
+- Jay **Gatsby** has Gatsby in it
 
-## Example query
+# Development
+run `npm start`, explorer is at `localhost:5000/graphql`
+
+# Example query
+### Home Page
 Note: it should be possible to abstract out a lot of the code below using fragments or ...
 ```
 query {
