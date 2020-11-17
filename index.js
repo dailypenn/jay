@@ -141,11 +141,17 @@ const server = new ApolloServer({
     }
 })
 
+app.get('/', (req, res) => {
+    res.send('welcome to DP GraphQL server')
+})
+
 server.applyMiddleware({ app })
 const httpServer = http.createServer(app)
 server.installSubscriptionHandlers(httpServer)
 
-httpServer.listen(5000, () => {
-    console.log(`Server ready at port 5000 ${server.graphqlPath}`)
-    console.log('Subscriptions ready at ws://localhost:5000')
+const PORT = process.env.PORT || 5000
+
+httpServer.listen(PORT, () => {
+    console.log(`Server ready at port ${PORT} ${server.graphqlPath}`)
+    console.log(`Subscriptions ready at ws://localhost:${PORT}`)
 })
