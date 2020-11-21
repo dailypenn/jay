@@ -2,50 +2,58 @@ const http = require('http')
 const express = require('express')
 const querystring = require('querystring')
 const {
-    ApolloServer,
-    PubSub,
-    gql,
-    UserInputError,
+  ApolloServer,
+  PubSub,
+  gql,
+  UserInputError
 } = require('apollo-server-express')
 const { RESTDataSource } = require('apollo-datasource-rest')
 
 // Pubsub init and ENUM def
-const pubsub = new PubSub();
+const pubsub = new PubSub()
 const ARTICLE_EDITED = 'ARTICLE_EDITED'
 
 const typeDefs = gql`
-    type Subscription {
-        articleEdited: Article
-    }
+  type Subscription {
+    articleEdited: Article
+  }
 
-    type Query {
-        article(slug: String) : Article
-        articles(first: Int, cursor: String, section: String): ArticleInfo
-    }
+  type Query {
+    article(slug: String): Article
+    articles(first: Int, cursor: String, section: String): ArticleInfo
+    author(slug: String): Author
+  }
 
-    type DominantMedia {
-        attachment_uuid: String
-        extension: String
-    }
+  type DominantMedia {
+    attachment_uuid: String
+    extension: String
+  }
 
-    type Article {
-        slug: String
-        headline: String
-        abstract: String
-        content: String
-        published_at: String
-        dominantMedia: DominantMedia
-    }
+  type Article {
+    slug: String
+    headline: String
+    abstract: String
+    content: String
+    published_at: String
+    dominantMedia: DominantMedia
+  }
 
-    type ArticleInfo {
-        edges: [ArticleNode]
-        hasNextPage: Boolean
-    }
+  type ArticleInfo {
+    edges: [ArticleNode]
+    hasNextPage: Boolean
+  }
 
-    type ArticleNode {
-        article: Article
-        cursor: String
-    }
+  type ArticleNode {
+    article: Article
+    cursor: String
+  }
+
+  type Author {
+    name: String
+    email: String
+    slug: String
+    articles: [Article]
+  }
 `
 
 // TODO: LRU Cache on each section + checking whether a section's datetime
@@ -56,93 +64,110 @@ const typeDefs = gql`
 const DEFAULT_PAGE = 50
 
 class ContentAPI extends RESTDataSource {
-    constructor() {
-        super();
-        this.baseURL = `https://thedp.com/`
+  constructor() {
+    super()
+    this.baseURL = `https://thedp.com/`
+  }
+
+  async getArticle(slug) {
+    const { article } = (await this.get(`article/${slug}.json`)) || {}
+    return article
+  }
+
+  async getAuthor(slug) {
+    const { author, articles } = (await this.get(`staff/${slug}.json`)) || {}
+    return { ...author, articles }
+  }
+
+  async getArticles(cursor = '', first = 5, section = `news`) {
+    const queryString = new Buffer(cursor, 'base64').toString('ascii')
+    const { section: cursorSection, index: rawIndex = 0 } = querystring.decode(
+      queryString
+    )
+    // Make sure the cursorSection and section are the same, pagination is borked otherwise
+    if (cursorSection && cursorSection !== section)
+      throw new UserInputError(
+        `Cursor section ${cursorSection} and requested section ${section} do not match!`
+      )
+    const index = parseInt(rawIndex)
+    // Make sure the index is a valid int
+    if (isNaN(index))
+      throw new UserInputError(`Index ${rawIndex} is not an integer!`)
+
+    // TODO: optimize pagination
+    const pageSize = DEFAULT_PAGE
+    let currPage = Math.floor(index / pageSize) + 1
+    let pageOffset = index % pageSize
+
+    const articles = []
+    do {
+      const ceoQuery = querystring.encode({
+        page: currPage,
+        per_page: pageSize
+      })
+      const { articles: pageArticles } =
+        (await this.get(`section/${section}.json?${ceoQuery}`)) || {}
+      pageArticles.slice(pageOffset).forEach(el => {
+        if (articles.length < first) articles.push(el)
+      })
+      currPage += 1
+      pageOffset = 0
+    } while (articles.length < first)
+
+    // TODO: actually check if there's a next page
+    return {
+      edges: articles.map((el, idx) => ({
+        article: el,
+        cursor: new Buffer(
+          querystring.encode({
+            section,
+            index: index + idx + 1
+          })
+        ).toString('base64')
+      })),
+      hasNextPage: true
     }
-
-    async getArticle(slug) {
-        const { article } = (await this.get(`article/${slug}.json`)) || {}
-        return article
-    }
-
-    async getArticles(cursor = "", first = 5, section = `news`) {
-        const queryString = (new Buffer(cursor, 'base64')).toString('ascii');
-        const { section: cursorSection, index: rawIndex = 0 } = querystring.decode(queryString);
-        // Make sure the cursorSection and section are the same, pagination is borked otherwise
-        if (cursorSection && cursorSection !== section) throw new UserInputError(`Cursor section ${cursorSection} and requested section ${section} do not match!`)
-        const index = parseInt(rawIndex)
-        // Make sure the index is a valid int
-        if (isNaN(index)) throw new UserInputError(`Index ${rawIndex} is not an integer!`)
-
-        // TODO: optimize pagination
-        const pageSize = DEFAULT_PAGE
-        let currPage = Math.floor(index / pageSize) + 1
-        let pageOffset = index % pageSize;
-
-        const articles = []
-        do {
-            const ceoQuery = querystring.encode({
-                page: currPage,
-                per_page: pageSize
-            })
-            const { articles: pageArticles } = (await this.get(`section/${section}.json?${ceoQuery}`)) || {}
-            pageArticles.slice(pageOffset).forEach(el => {
-                if (articles.length < first) articles.push(el)
-            })
-            currPage += 1
-            pageOffset = 0
-        } while (articles.length < first)
-
-        // TODO: actually check if there's a next page
-        return {
-            edges: articles.map((el, idx) => ({
-                article: el,
-                cursor: (new Buffer(querystring.encode({
-                    section,
-                    index: index + idx + 1
-                }))).toString('base64')
-            })),
-            hasNextPage: true
-        }
-    }
+  }
 }
 
 const resolvers = {
-    Subscription: {
-        articleEdited: {
-            subscribe: () => pubsub.asyncIterator([ARTICLE_EDITED])
-        },
-    },
-    Query: {
-        article: async (_, { slug }, { dataSources }) => dataSources.contentAPI.getArticle(slug),
-        articles: async (_, { cursor, first, section }, { dataSources }) => {
-            return dataSources.contentAPI.getArticles(cursor, first, section)
-        }
+  Subscription: {
+    articleEdited: {
+      subscribe: () => pubsub.asyncIterator([ARTICLE_EDITED])
     }
+  },
+  Query: {
+    article: async (_, { slug }, { dataSources }) =>
+      dataSources.contentAPI.getArticle(slug),
+    articles: async (_, { cursor, first, section }, { dataSources }) => {
+      return dataSources.contentAPI.getArticles(cursor, first, section)
+    },
+    author: async (_, { slug }, { dataSources }) =>
+      dataSources.contentAPI.getAuthor(slug)
+  }
 }
 
 // REST routes
-const app = express();
+const app = express()
 
 app.post('/connector', async (req, res) => {
-    // TODO: JWT Auth
-    await pubsub.publish(ARTICLE_EDITED, { articleEdited: req.body })
-    res.send("nice")
+  // TODO: JWT Auth
+  await pubsub.publish(ARTICLE_EDITED, { articleEdited: req.body })
+  res.send('nice')
 })
 
 const server = new ApolloServer({
-    typeDefs,
-    resolvers,
-    dataSources: () => {
-        return {
-            contentAPI: new ContentAPI()
-        }
+  typeDefs,
+  resolvers,
+  dataSources: () => {
+    return {
+      contentAPI: new ContentAPI()
     }
+  }
 })
 
 app.get('/', (req, res) => {
-    res.send('welcome to DP GraphQL server')
+  res.send('welcome to DP GraphQL server')
 })
 
 server.applyMiddleware({ app })
@@ -152,6 +177,6 @@ server.installSubscriptionHandlers(httpServer)
 const PORT = process.env.PORT || 5000
 
 httpServer.listen(PORT, () => {
-    console.log(`Server ready at port ${PORT} ${server.graphqlPath}`)
-    console.log(`Subscriptions ready at ws://localhost:${PORT}`)
+  console.log(`Server ready at port ${PORT} ${server.graphqlPath}`)
+  console.log(`Subscriptions ready at ws://localhost:${PORT}`)
 })
