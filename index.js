@@ -22,6 +22,7 @@ const typeDefs = gql`
     article(slug: String): Article
     articles(first: Int, cursor: String, section: String): ArticleInfo
     author(slug: String): Author
+    searchArticles(filter: String): [Article]
   }
 
   type DominantMedia {
@@ -89,6 +90,7 @@ class ContentAPI extends RESTDataSource {
       throw new UserInputError(
         `Cursor section ${cursorSection} and requested section ${section} do not match!`
       )
+
     const index = parseInt(rawIndex)
     // Make sure the index is a valid int
     if (isNaN(index))
@@ -128,6 +130,26 @@ class ContentAPI extends RESTDataSource {
       hasNextPage: true
     }
   }
+
+  // async getLinkedArticles(slug) {
+  //   // TODO: fetch the article content from cache
+  //   const { article: { content } } = (await this.get(`article/${slug}.json`)) || {}
+  //   const linkedArticles = []
+  //   // parse content to extract all links
+
+  //   // go through each link to push the linkedArticle into linkedArticles
+  // }
+
+  getSearchArticles = async filter => {
+    if (filter) {
+      const { items: articles } = await this.get(
+        `search.json?a=1&s=${filter}&ty=article`
+      )
+      return articles
+    }
+
+    return []
+  }
 }
 
 const resolvers = {
@@ -139,8 +161,15 @@ const resolvers = {
   Query: {
     article: async (_, { slug }, { dataSources }) =>
       dataSources.contentAPI.getArticle(slug),
-    articles: async (_, { cursor, first, section }, { dataSources }) => {
-      return dataSources.contentAPI.getArticles(cursor, first, section)
+    articles: async (
+      _,
+      { cursor, first, section, filter },
+      { dataSources }
+    ) => {
+      return dataSources.contentAPI.getArticles(cursor, first, section, filter)
+    },
+    searchArticles: async (_, { filter }, { dataSources }) => {
+      return dataSources.contentAPI.getSearchArticles(filter)
     },
     author: async (_, { slug }, { dataSources }) =>
       dataSources.contentAPI.getAuthor(slug)
