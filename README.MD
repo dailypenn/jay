@@ -44,3 +44,6 @@ query {
   
 }
 ```
+
+# CEO docs
+- https://docs.getsnworks.com/front-end/json-api/
