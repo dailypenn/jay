@@ -37,6 +37,7 @@ const typeDefs = gql`
     content: String
     published_at: String
     dominantMedia: DominantMedia
+    authors: [Author]
   }
 
   type ArticleInfo {
@@ -51,11 +52,14 @@ const typeDefs = gql`
 
   type Author {
     name: String
-    email: String
     slug: String
-    articles: [Article]
   }
 `
+
+const parseArticle = article => {
+  article.authors = article.authors.map(({ name, slug }) => ({ name, slug }))
+  return article
+}
 
 // TODO: LRU Cache on each section + checking whether a section's datetime
 // has been modified to delete/regenerate the cache
@@ -72,7 +76,7 @@ class ContentAPI extends RESTDataSource {
 
   async getArticle(slug) {
     const { article } = (await this.get(`article/${slug}.json`)) || {}
-    return article
+    return parseArticle(article)
   }
 
   async getAuthor(slug) {
@@ -119,7 +123,7 @@ class ContentAPI extends RESTDataSource {
     // TODO: actually check if there's a next page
     return {
       edges: articles.map((el, idx) => ({
-        article: el,
+        article: parseArticle(el),
         cursor: new Buffer(
           querystring.encode({
             section,
@@ -171,8 +175,8 @@ const resolvers = {
     searchArticles: async (_, { filter }, { dataSources }) => {
       return dataSources.contentAPI.getSearchArticles(filter)
     },
-    author: async (_, { slug }, { dataSources }) =>
-      dataSources.contentAPI.getAuthor(slug)
+    // author: async (_, { slug }, { dataSources }) =>
+    //   dataSources.contentAPI.getAuthor(slug)
   }
 }
 
