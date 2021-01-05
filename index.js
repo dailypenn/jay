@@ -4,60 +4,27 @@ const querystring = require('querystring')
 const {
   ApolloServer,
   PubSub,
-  gql,
   UserInputError
 } = require('apollo-server-express')
 const { RESTDataSource } = require('apollo-datasource-rest')
+
+const typeDefs = require('./schema')
 
 // Pubsub init and ENUM def
 const pubsub = new PubSub()
 const ARTICLE_EDITED = 'ARTICLE_EDITED'
 
-const typeDefs = gql`
-  type Subscription {
-    articleEdited: Article
-  }
-
-  type Query {
-    article(slug: String): Article
-    articles(first: Int, cursor: String, section: String): ArticleInfo
-    author(slug: String): Author
-    searchArticles(filter: String): [Article]
-  }
-
-  type DominantMedia {
-    attachment_uuid: String
-    extension: String
-  }
-
-  type Article {
-    slug: String
-    headline: String
-    abstract: String
-    content: String
-    published_at: String
-    dominantMedia: DominantMedia
-    authors: [Author]
-  }
-
-  type ArticleInfo {
-    edges: [ArticleNode]
-    hasNextPage: Boolean
-  }
-
-  type ArticleNode {
-    article: Article
-    cursor: String
-  }
-
-  type Author {
-    name: String
-    slug: String
-  }
-`
-
 const parseArticle = article => {
-  article.authors = article.authors.map(({ name, slug }) => ({ name, slug }))
+  const { published_at, authors, slug } = article
+
+  // generate the correct slug
+  const firstIndex = published_at.indexOf('-')
+  const year = published_at.substring(0, firstIndex)
+  const month = published_at.substring(firstIndex + 1, published_at.indexOf('-', firstIndex + 1))
+  article.slug = `${year}/${month}/${slug}`
+
+  // parse authors
+  article.authors = authors.map(({ name, slug }) => ({ name, slug }))
   return article
 }
 
