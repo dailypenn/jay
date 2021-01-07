@@ -20,7 +20,10 @@ const parseArticle = article => {
   // generate the correct slug
   const firstIndex = published_at.indexOf('-')
   const year = published_at.substring(0, firstIndex)
-  const month = published_at.substring(firstIndex + 1, published_at.indexOf('-', firstIndex + 1))
+  const month = published_at.substring(
+    firstIndex + 1,
+    published_at.indexOf('-', firstIndex + 1)
+  )
   article.slug = `${year}/${month}/${slug}`
 
   // parse authors
@@ -141,7 +144,7 @@ const resolvers = {
     },
     searchArticles: async (_, { filter }, { dataSources }) => {
       return dataSources.contentAPI.getSearchArticles(filter)
-    },
+    }
     // author: async (_, { slug }, { dataSources }) =>
     //   dataSources.contentAPI.getAuthor(slug)
   }
@@ -171,12 +174,18 @@ app.get('/', (req, res) => {
 })
 
 server.applyMiddleware({ app })
-const httpServer = http.createServer(app)
-server.installSubscriptionHandlers(httpServer)
+// const httpServer = http.createServer(app)
+// server.installSubscriptionHandlers(httpServer)
 
 const PORT = process.env.PORT || 5000
 
-httpServer.listen(PORT, () => {
-  console.log(`Server ready at port ${PORT} ${server.graphqlPath}`)
-  console.log(`Subscriptions ready at ws://localhost:${PORT}`)
-})
+app.listen(PORT, () =>
+  console.log(
+    `🚀 Server ready at http://localhost:${PORT}/${server.graphqlPath}`
+  )
+)
+
+// httpServer.listen(PORT, () => {
+//   console.log(`Server ready at port ${PORT} ${server.graphqlPath}`)
+//   console.log(`Subscriptions ready at ws://localhost:${PORT}`)
+// })
