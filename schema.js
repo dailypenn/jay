@@ -25,6 +25,7 @@ const typeDefs = gql`
     published_at: String
     dominantMedia: DominantMedia
     authors: [Author]
+    tag: String
   }
 
   type ArticleInfo {

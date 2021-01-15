@@ -9,13 +9,14 @@ const {
 const { RESTDataSource } = require('apollo-datasource-rest')
 
 const typeDefs = require('./schema')
+const { STREET_TAGS, UTB_TAGS, TAG_TO_NAME } = require('./constants')
 
 // Pubsub init and ENUM def
 const pubsub = new PubSub()
 const ARTICLE_EDITED = 'ARTICLE_EDITED'
 
-const parseArticle = article => {
-  const { published_at, authors, slug } = article
+const parseArticle = (article, publication, section) => {
+  const { published_at, authors, slug, tags } = article
 
   // generate the correct slug
   const firstIndex = published_at.indexOf('-')
@@ -28,6 +29,45 @@ const parseArticle = article => {
 
   // parse authors
   article.authors = authors.map(({ name, slug }) => ({ name, slug }))
+
+  // parse tag
+  if (publication === STREET || publication === UTB) {
+    let TAGS = []
+    switch (publication) {
+      case STREET:
+        TAGS = STREET_TAGS
+        break;
+      default:
+        TAGS = UTB_TAGS
+    }
+
+    if (TAGS.includes(section)) {
+      article.tag = section
+    } else {
+      const article_tags = tags.map(({ slug }) => slug)
+      console.log(article_tags)
+      console.log(TAGS)
+      for (let i = 0; i < TAGS.length; i++) {
+        if (article_tags.includes(TAGS[i])) {
+          article.tag = TAGS[i]
+          break
+        }
+      }
+    }
+
+    console.log(article.tag)
+
+    if (article.tag in TAG_TO_NAME) {
+      article.tag = TAG_TO_NAME[article.tag]
+    }
+
+    article.tag = article.tag.replace('-', ' ')
+  } else {
+    article.tag = 'news'
+  }
+
+  delete article.tags
+
   return article
 }
 
@@ -112,7 +152,7 @@ class ContentAPI extends RESTDataSource {
     // TODO: actually check if there's a next page
     return {
       edges: articles.map((el, idx) => ({
-        article: parseArticle(el),
+        article: parseArticle(el, publication, section),
         cursor: new Buffer(
           querystring.encode({
             section,
@@ -147,10 +187,10 @@ const resolvers = {
       dataSources.contentAPI.getArticle(slug),
     articles: async (
       _,
-      { first, cursor, section, publication, filter },
+      { first, cursor, section, publication },
       { dataSources }
     ) => {
-      console.log('article triggered')
+      // console.log('article triggered')
       return dataSources.contentAPI.getArticles(
         first,
         cursor,
