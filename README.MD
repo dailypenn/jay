@@ -7,6 +7,11 @@ Starting with Canada Goose for mobile, we are naming the graphQL backend by jay 
 # Development
 run `npm start`, explorer is at `localhost:5000/graphql`
 
+# Deployment
+```
+gcloud app deploy
+```
+
 # Example query
 ### Home Page
 Note: it should be possible to abstract out a lot of the code below using fragments or ...
