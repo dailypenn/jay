@@ -9,7 +9,13 @@ const {
 const { RESTDataSource } = require('apollo-datasource-rest')
 
 const typeDefs = require('./schema')
-const { STREET_TAGS, UTB_TAGS, TAG_TO_NAME } = require('./constants')
+const {
+  STREET_TAGS,
+  UTB_TAGS,
+  TAG_TO_NAME,
+  STREET,
+  UTB
+} = require('./constants')
 
 // Pubsub init and ENUM def
 const pubsub = new PubSub()
@@ -36,7 +42,7 @@ const parseArticle = (article, publication, section) => {
     switch (publication) {
       case STREET:
         TAGS = STREET_TAGS
-        break;
+        break
       default:
         TAGS = UTB_TAGS
     }
@@ -63,6 +69,7 @@ const parseArticle = (article, publication, section) => {
 
     article.tag = article.tag.replace('-', ' ')
   } else {
+    // TODO: add DP tags + merge the top carousel into one thing
     article.tag = 'news'
   }
 
@@ -77,8 +84,6 @@ const parseArticle = (article, publication, section) => {
 // property of the response from /section/{slug}
 
 const DEFAULT_PAGE = 50
-const STREET = 'street'
-const UTB = 'utb'
 
 class ContentAPI extends RESTDataSource {
   constructor() {
