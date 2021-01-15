@@ -52,8 +52,6 @@ const parseArticle = (article, publication, section) => {
       article.tag = section
     } else {
       const article_tags = tags.map(({ slug }) => slug)
-      console.log(article_tags)
-      console.log(TAGS)
       for (let i = 0; i < TAGS.length; i++) {
         if (article_tags.includes(TAGS[i])) {
           article.tag = TAGS[i]
@@ -61,8 +59,6 @@ const parseArticle = (article, publication, section) => {
         }
       }
     }
-
-    console.log(article.tag)
 
     if (article.tag in TAG_TO_NAME) {
       article.tag = TAG_TO_NAME[article.tag]
