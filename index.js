@@ -14,7 +14,8 @@ const {
   UTB_TAGS,
   TAG_TO_NAME,
   STREET,
-  UTB
+  UTB,
+  DEFAULT_PAGE
 } = require('./constants')
 
 // Pubsub init and ENUM def
@@ -82,8 +83,6 @@ const parseArticle = (article, publication, section) => {
 // has been modified to delete/regenerate the cache
 // use the         "modified_at": "2018-08-17 14:51:32",
 // property of the response from /section/{slug}
-
-const DEFAULT_PAGE = 50
 
 class ContentAPI extends RESTDataSource {
   constructor() {

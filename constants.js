@@ -36,4 +36,13 @@ const TAG_TO_NAME = {
 const STREET = 'street'
 const UTB = 'utb'
 
-module.exports = { STREET_TAGS, UTB_TAGS, TAG_TO_NAME, STREET, UTB }
+const DEFAULT_PAGE = 10
+
+module.exports = {
+  STREET_TAGS,
+  UTB_TAGS,
+  TAG_TO_NAME,
+  STREET,
+  UTB,
+  DEFAULT_PAGE
+}
