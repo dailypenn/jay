@@ -37,11 +37,24 @@ const parseArticle = article => {
 // property of the response from /section/{slug}
 
 const DEFAULT_PAGE = 50
+const STREET = 'street'
+const UTB = 'utb'
 
 class ContentAPI extends RESTDataSource {
   constructor() {
     super()
-    this.baseURL = `https://thedp.com/`
+    this.publication = ''
+  }
+
+  get baseURL() {
+    switch (this.publication) {
+      case STREET:
+        return `https://www.34st.com/`
+      case UTB:
+        return `https://www.underthebutton.com/`
+      default:
+        return `https://thedp.com/`
+    }
   }
 
   async getArticle(slug) {
@@ -54,7 +67,13 @@ class ContentAPI extends RESTDataSource {
     return { ...author, articles }
   }
 
-  async getArticles(cursor = '', first = 5, section = `news`) {
+  async getArticles(
+    first = 5,
+    cursor = '',
+    section = `news`,
+    publication = 'dp'
+  ) {
+    this.publication = publication
     const queryString = new Buffer(cursor, 'base64').toString('ascii')
     const { section: cursorSection, index: rawIndex = 0 } = querystring.decode(
       queryString
@@ -105,21 +124,12 @@ class ContentAPI extends RESTDataSource {
     }
   }
 
-  // async getLinkedArticles(slug) {
-  //   // TODO: fetch the article content from cache
-  //   const { article: { content } } = (await this.get(`article/${slug}.json`)) || {}
-  //   const linkedArticles = []
-  //   // parse content to extract all links
-
-  //   // go through each link to push the linkedArticle into linkedArticles
-  // }
-
   getSearchArticles = async filter => {
     if (filter) {
       const { items: articles } = await this.get(
         `search.json?a=1&s=${filter}&ty=article`
       )
-      return articles
+      return articles.map(article => parseArticle(article))
     }
 
     return []
@@ -137,10 +147,16 @@ const resolvers = {
       dataSources.contentAPI.getArticle(slug),
     articles: async (
       _,
-      { cursor, first, section, filter },
+      { first, cursor, section, publication, filter },
       { dataSources }
     ) => {
-      return dataSources.contentAPI.getArticles(cursor, first, section, filter)
+      console.log('article triggered')
+      return dataSources.contentAPI.getArticles(
+        first,
+        cursor,
+        section,
+        publication
+      )
     },
     searchArticles: async (_, { filter }, { dataSources }) => {
       return dataSources.contentAPI.getSearchArticles(filter)
@@ -181,7 +197,7 @@ const PORT = process.env.PORT || 5000
 
 app.listen(PORT, () =>
   console.log(
-    `🚀 Server ready at http://localhost:${PORT}/${server.graphqlPath}`
+    `🚀 Server ready at http://localhost:${PORT}${server.graphqlPath}`
   )
 )
 

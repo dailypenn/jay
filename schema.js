@@ -7,7 +7,7 @@ const typeDefs = gql`
 
   type Query {
     article(slug: String): Article
-    articles(first: Int, cursor: String, section: String): ArticleInfo
+    articles(first: Int, cursor: String, section: String, publication: String): ArticleInfo
     author(slug: String): Author
     searchArticles(filter: String): [Article]
   }
