@@ -1,3 +1,17 @@
+const DP_TAGS = [
+  'news',
+  'sports',
+  'opinion',
+  'multimedia'
+]
+
+const DP_CEO_TAGS = [
+  'app-front-news',
+  'app-front-opinion',
+  'app-front-sports',
+  'app-front-multimedia'
+]
+
 const STREET_TAGS = [
   'style',
   'lastpage',
@@ -33,15 +47,19 @@ const TAG_TO_NAME = {
   'choose-your-own-adventure': 'adventure'
 }
 
+const DP = 'dp'
 const STREET = 'street'
 const UTB = 'utb'
 
 const DEFAULT_PAGE = 10
 
 module.exports = {
+  DP_TAGS,
+  DP_CEO_TAGS,
   STREET_TAGS,
   UTB_TAGS,
   TAG_TO_NAME,
+  DP,
   STREET,
   UTB,
   DEFAULT_PAGE

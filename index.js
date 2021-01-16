@@ -1,4 +1,3 @@
-const http = require('http')
 const express = require('express')
 const querystring = require('querystring')
 const {
@@ -10,19 +9,23 @@ const { RESTDataSource } = require('apollo-datasource-rest')
 
 const typeDefs = require('./schema')
 const {
+  DP_TAGS,
+  DP_CEO_TAGS,
   STREET_TAGS,
   UTB_TAGS,
   TAG_TO_NAME,
+  DP,
   STREET,
   UTB,
   DEFAULT_PAGE
 } = require('./constants')
+const { TIME_AGO, DAYS_AGO } = require('./helperFunctions')
 
 // Pubsub init and ENUM def
 const pubsub = new PubSub()
 const ARTICLE_EDITED = 'ARTICLE_EDITED'
 
-const parseArticle = (article, publication, section) => {
+const parseArticle = (article, publication, section, isSectionArticle = false) => {
   const { published_at, authors, slug, tags } = article
 
   // generate the correct slug
@@ -38,9 +41,16 @@ const parseArticle = (article, publication, section) => {
   article.authors = authors.map(({ name, slug }) => ({ name, slug }))
 
   // parse tag
-  if (publication === STREET || publication === UTB) {
+  if (isSectionArticle) {
+    // this is a section article from the discover page
+    article.tag = section
+  } else {
+    // home article/ search article/ setting article
     let TAGS = []
     switch (publication) {
+      case DP:
+        TAGS = DP_TAGS
+        break
       case STREET:
         TAGS = STREET_TAGS
         break
@@ -50,6 +60,8 @@ const parseArticle = (article, publication, section) => {
 
     if (TAGS.includes(section)) {
       article.tag = section
+    } else if (DP_CEO_TAGS.includes(section)) {
+      article.tag = section.split('-')[2]
     } else {
       const article_tags = tags.map(({ slug }) => slug)
       for (let i = 0; i < TAGS.length; i++) {
@@ -65,12 +77,12 @@ const parseArticle = (article, publication, section) => {
     }
 
     article.tag = article.tag.replace('-', ' ')
-  } else {
-    // TODO: add DP tags + merge the top carousel into one thing
-    article.tag = 'news'
   }
 
   delete article.tags
+
+  // parse published_at
+  article.published_at = TIME_AGO(published_at)
 
   return article
 }
@@ -107,7 +119,48 @@ class ContentAPI extends RESTDataSource {
     return { ...author, articles }
   }
 
-  async getArticles(
+  async getHomeArticles(first = 5, section = 'news', publication = 'dp') {
+    this.publication = publication
+
+    if (publication === DP && section === 'top') {
+      let newsNumber = 2
+      let topArticles = []
+      
+      const otherSections = ['app-top-opinion', 'app-top-sports', 'app-top-multimedia']
+
+      otherSections.forEach(section => {
+        // for non-news sections, query the first article only
+        const { articles } = await this.get(`section/${section}.json`, {
+          page: 1,
+          per_page: 1
+        })
+        const article = articles[0]
+        const { published_at } = article
+        if (DAYS_AGO(published_at) > 4) {
+          newsNumber ++
+        } else {
+          topArticles.push(parseArticle(article, publication, section.split('-')[2]))
+        }
+      })
+
+      // number of news articles to query = newsNumber
+      const { articles } = await this.get(`section/app-top-news.json`, {
+        page: 1,
+        per_page: newsNumber
+      })
+      const newsArticles = articles.map(article => parseArticle(article, publication, 'news'))
+      
+      return newsArticles.concat(topArticles)
+    }
+
+    const { articles } = await this.get(`section/${section}.json`, {
+      page: 1,
+      per_page: first
+    })
+    return articles.map(article => parseArticle(article, publication, section))
+  }
+
+  async getSectionArticles(
     first = 5,
     cursor = '',
     section = `news`,
@@ -152,7 +205,7 @@ class ContentAPI extends RESTDataSource {
     // TODO: actually check if there's a next page
     return {
       edges: articles.map((el, idx) => ({
-        article: parseArticle(el, publication, section),
+        article: parseArticle(el, publication, section, true),
         cursor: new Buffer(
           querystring.encode({
             section,
@@ -185,13 +238,16 @@ const resolvers = {
   Query: {
     article: async (_, { slug }, { dataSources }) =>
       dataSources.contentAPI.getArticle(slug),
-    articles: async (
+    homeArticles: async (_, { first, section, publication }, { dataSources }) => {
+      return dataSources.contentAPI.getHomeArticles(first, section, publication)
+    },
+    sectionArticles: async (
       _,
       { first, cursor, section, publication },
       { dataSources }
     ) => {
       // console.log('article triggered')
-      return dataSources.contentAPI.getArticles(
+      return dataSources.contentAPI.getSectionArticles(
         first,
         cursor,
         section,
