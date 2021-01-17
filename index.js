@@ -81,7 +81,11 @@ const parseArticle = (
       article.tag = TAG_TO_NAME[article.tag]
     }
 
-    article.tag = article.tag.replace('-', ' ')
+    if (article.tag) {
+      article.tag = article.tag.replace('-', ' ')
+    } else {
+      article.tag = 'uncategorized'
+    }
   }
 
   delete article.tags

@@ -10,7 +10,7 @@ const typeDefs = gql`
     sectionArticles(section: String, publication: String): [Article]
     author(slug: String): Author
     homeArticles(first: Int, section: String, publication: String): [Article]
-    searchArticles(filter: String): [Article]
+    searchArticles(filter: String, publication: String): [Article]
   }
 
   type DominantMedia {
