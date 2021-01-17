@@ -124,7 +124,11 @@ class ContentAPI extends RESTDataSource {
     return { ...author, articles }
   }
 
-  async getHomeArticles(first = 5, section = 'news', publication = 'The Daily Pennsylvanian') {
+  async getHomeArticles(
+    first = 5,
+    section = 'news',
+    publication = 'The Daily Pennsylvanian'
+  ) {
     this.publication = publication
 
     if (publication === DP && section === 'top') {
@@ -174,62 +178,78 @@ class ContentAPI extends RESTDataSource {
     return articles.map(article => parseArticle(article, publication, section))
   }
 
+  // TODO: add page number / support fetchMore
   async getSectionArticles(
-    first = 5,
-    cursor = '',
-    section = `news`,
+    section = 'news',
     publication = 'The Daily Pennsylvanian'
   ) {
     this.publication = publication
-    const queryString = new Buffer(cursor, 'base64').toString('ascii')
-    const { section: cursorSection, index: rawIndex = 0 } = querystring.decode(
-      queryString
+
+    const { articles } = await this.get(`section/${section}.json`, {
+      page: 1,
+      per_page: DEFAULT_PAGE
+    })
+    return articles.map(article =>
+      parseArticle(article, publication, section, true)
     )
-    // Make sure the cursorSection and section are the same, pagination is borked otherwise
-    if (cursorSection && cursorSection !== section)
-      throw new UserInputError(
-        `Cursor section ${cursorSection} and requested section ${section} do not match!`
-      )
-
-    const index = parseInt(rawIndex)
-    // Make sure the index is a valid int
-    if (isNaN(index))
-      throw new UserInputError(`Index ${rawIndex} is not an integer!`)
-
-    // TODO: optimize pagination
-    const pageSize = DEFAULT_PAGE
-    let currPage = Math.floor(index / pageSize) + 1
-    let pageOffset = index % pageSize
-
-    const articles = []
-    do {
-      const ceoQuery = querystring.encode({
-        page: currPage,
-        per_page: pageSize
-      })
-      const { articles: pageArticles } =
-        (await this.get(`section/${section}.json?${ceoQuery}`)) || {}
-      pageArticles.slice(pageOffset).forEach(el => {
-        if (articles.length < first) articles.push(el)
-      })
-      currPage += 1
-      pageOffset = 0
-    } while (articles.length < first)
-
-    // TODO: actually check if there's a next page
-    return {
-      edges: articles.map((el, idx) => ({
-        article: parseArticle(el, publication, section, true),
-        cursor: new Buffer(
-          querystring.encode({
-            section,
-            index: index + idx + 1
-          })
-        ).toString('base64')
-      })),
-      hasNextPage: true
-    }
   }
+
+  // async getSectionArticles(
+  //   first = 5,
+  //   cursor = '',
+  //   section = `news`,
+  //   publication = 'The Daily Pennsylvanian'
+  // ) {
+  //   this.publication = publication
+  //   const queryString = new Buffer(cursor, 'base64').toString('ascii')
+  //   const { section: cursorSection, index: rawIndex = 0 } = querystring.decode(
+  //     queryString
+  //   )
+  //   // Make sure the cursorSection and section are the same, pagination is borked otherwise
+  //   if (cursorSection && cursorSection !== section)
+  //     throw new UserInputError(
+  //       `Cursor section ${cursorSection} and requested section ${section} do not match!`
+  //     )
+
+  //   const index = parseInt(rawIndex)
+  //   // Make sure the index is a valid int
+  //   if (isNaN(index))
+  //     throw new UserInputError(`Index ${rawIndex} is not an integer!`)
+
+  //   // TODO: optimize pagination
+  //   const pageSize = DEFAULT_PAGE
+  //   let currPage = Math.floor(index / pageSize) + 1
+  //   let pageOffset = index % pageSize
+
+  //   const articles = []
+  //   do {
+  //     const ceoQuery = querystring.encode({
+  //       page: currPage,
+  //       per_page: pageSize
+  //     })
+  //     const { articles: pageArticles } =
+  //       (await this.get(`section/${section}.json?${ceoQuery}`)) || {}
+  //     pageArticles.slice(pageOffset).forEach(el => {
+  //       if (articles.length < first) articles.push(el)
+  //     })
+  //     currPage += 1
+  //     pageOffset = 0
+  //   } while (articles.length < first)
+
+  //   // TODO: actually check if there's a next page
+  //   return {
+  //     edges: articles.map((el, idx) => ({
+  //       article: parseArticle(el, publication, section, true),
+  //       cursor: new Buffer(
+  //         querystring.encode({
+  //           section,
+  //           index: index + idx + 1
+  //         })
+  //       ).toString('base64')
+  //     })),
+  //     hasNextPage: true
+  //   }
+  // }
 
   getSearchArticles = async filter => {
     if (filter) {
@@ -259,18 +279,9 @@ const resolvers = {
     ) => {
       return dataSources.contentAPI.getHomeArticles(first, section, publication)
     },
-    sectionArticles: async (
-      _,
-      { first, cursor, section, publication },
-      { dataSources }
-    ) => {
+    sectionArticles: async (_, { section, publication }, { dataSources }) => {
       // console.log('article triggered')
-      return dataSources.contentAPI.getSectionArticles(
-        first,
-        cursor,
-        section,
-        publication
-      )
+      return dataSources.contentAPI.getSectionArticles(section, publication)
     },
     searchArticles: async (_, { filter }, { dataSources }) => {
       return dataSources.contentAPI.getSearchArticles(filter)
