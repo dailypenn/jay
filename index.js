@@ -25,7 +25,12 @@ const { TIME_AGO, DAYS_AGO } = require('./helperFunctions')
 const pubsub = new PubSub()
 const ARTICLE_EDITED = 'ARTICLE_EDITED'
 
-const parseArticle = (article, publication, section, isSectionArticle = false) => {
+const parseArticle = (
+  article,
+  publication,
+  section,
+  isSectionArticle = false
+) => {
   const { published_at, authors, slug, tags } = article
 
   // generate the correct slug
@@ -125,31 +130,40 @@ class ContentAPI extends RESTDataSource {
     if (publication === DP && section === 'top') {
       let newsNumber = 2
       let topArticles = []
-      
-      const otherSections = ['app-top-opinion', 'app-top-sports', 'app-top-multimedia']
 
-      otherSections.forEach(section => {
-        // for non-news sections, query the first article only
-        const { articles } = await this.get(`section/${section}.json`, {
-          page: 1,
-          per_page: 1
+      const otherSections = [
+        'app-top-opinion',
+        'app-top-sports',
+        'app-top-multimedia'
+      ]
+
+      await Promise.all(
+        otherSections.map(async section => {
+          const { articles } = await this.get(`section/${section}.json`, {
+            page: 1,
+            per_page: 1
+          })
+
+          const article = articles[0]
+          const { published_at } = article
+          if (DAYS_AGO(published_at) > 4) {
+            newsNumber++
+          } else {
+            topArticles.push(
+              parseArticle(article, publication, section.split('-')[2])
+            )
+          }
         })
-        const article = articles[0]
-        const { published_at } = article
-        if (DAYS_AGO(published_at) > 4) {
-          newsNumber ++
-        } else {
-          topArticles.push(parseArticle(article, publication, section.split('-')[2]))
-        }
-      })
+      )
 
-      // number of news articles to query = newsNumber
       const { articles } = await this.get(`section/app-top-news.json`, {
         page: 1,
         per_page: newsNumber
       })
-      const newsArticles = articles.map(article => parseArticle(article, publication, 'news'))
-      
+      const newsArticles = articles.map(article =>
+        parseArticle(article, publication, 'news')
+      )
+
       return newsArticles.concat(topArticles)
     }
 
@@ -238,7 +252,11 @@ const resolvers = {
   Query: {
     article: async (_, { slug }, { dataSources }) =>
       dataSources.contentAPI.getArticle(slug),
-    homeArticles: async (_, { first, section, publication }, { dataSources }) => {
+    homeArticles: async (
+      _,
+      { first, section, publication },
+      { dataSources }
+    ) => {
       return dataSources.contentAPI.getHomeArticles(first, section, publication)
     },
     sectionArticles: async (

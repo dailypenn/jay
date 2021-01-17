@@ -9,7 +9,7 @@ const typeDefs = gql`
     article(slug: String): Article
     sectionArticles(first: Int, cursor: String, section: String, publication: String): ArticleInfo
     author(slug: String): Author
-    homeArticles(first: Int, section: String, publication: string): [Article]
+    homeArticles(first: Int, section: String, publication: String): [Article]
     searchArticles(filter: String): [Article]
   }
 
