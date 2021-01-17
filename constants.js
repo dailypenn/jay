@@ -47,9 +47,9 @@ const TAG_TO_NAME = {
   'choose-your-own-adventure': 'adventure'
 }
 
-const DP = 'dp'
-const STREET = 'street'
-const UTB = 'utb'
+const DP = 'The Daily Pennsylvanian'
+const STREET = '34th Street'
+const UTB = 'Under the Button'
 
 const DEFAULT_PAGE = 10
 

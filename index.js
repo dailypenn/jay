@@ -124,7 +124,7 @@ class ContentAPI extends RESTDataSource {
     return { ...author, articles }
   }
 
-  async getHomeArticles(first = 5, section = 'news', publication = 'dp') {
+  async getHomeArticles(first = 5, section = 'news', publication = 'The Daily Pennsylvanian') {
     this.publication = publication
 
     if (publication === DP && section === 'top') {
@@ -178,7 +178,7 @@ class ContentAPI extends RESTDataSource {
     first = 5,
     cursor = '',
     section = `news`,
-    publication = 'dp'
+    publication = 'The Daily Pennsylvanian'
   ) {
     this.publication = publication
     const queryString = new Buffer(cursor, 'base64').toString('ascii')
