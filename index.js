@@ -251,12 +251,14 @@ class ContentAPI extends RESTDataSource {
   //   }
   // }
 
-  getSearchArticles = async filter => {
+  getSearchArticles = async (filter, publication) => {
+    this.publication = publication
+
     if (filter) {
       const { items: articles } = await this.get(
         `search.json?a=1&s=${filter}&ty=article`
       )
-      return articles.map(article => parseArticle(article))
+      return articles.map(article => parseArticle(article, publication, ''))
     }
 
     return []
@@ -283,8 +285,8 @@ const resolvers = {
       // console.log('article triggered')
       return dataSources.contentAPI.getSectionArticles(section, publication)
     },
-    searchArticles: async (_, { filter }, { dataSources }) => {
-      return dataSources.contentAPI.getSearchArticles(filter)
+    searchArticles: async (_, { filter, publication }, { dataSources }) => {
+      return dataSources.contentAPI.getSearchArticles(filter, publication)
     }
     // author: async (_, { slug }, { dataSources }) =>
     //   dataSources.contentAPI.getAuthor(slug)
