@@ -1,9 +1,4 @@
-const DP_TAGS = [
-  'news',
-  'sports',
-  'opinion',
-  'multimedia'
-]
+const DP_TAGS = ['news', 'sports', 'opinion', 'multimedia']
 
 const DP_CEO_TAGS = [
   'app-front-news',
@@ -47,6 +42,12 @@ const TAG_TO_NAME = {
   'choose-your-own-adventure': 'adventure'
 }
 
+const UTB_RANDOM_SECTIONS = [
+  { section: 'news', pages: 1608 },
+  { section: 'opinion', pages: 583 },
+  { section: 'choose-your-own-adventure', pages: 44 }
+]
+
 const DP = 'The Daily Pennsylvanian'
 const STREET = '34th Street'
 const UTB = 'Under the Button'
@@ -62,5 +63,6 @@ module.exports = {
   DP,
   STREET,
   UTB,
-  DEFAULT_PAGE
+  DEFAULT_PAGE,
+  UTB_RANDOM_SECTIONS
 }

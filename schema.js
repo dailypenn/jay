@@ -11,6 +11,7 @@ const typeDefs = gql`
     author(slug: String): Author
     homeArticles(first: Int, section: String, publication: String): [Article]
     searchArticles(filter: String, publication: String): [Article]
+    utbRandomArticle: Article
   }
 
   type DominantMedia {

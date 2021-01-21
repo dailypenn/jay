@@ -17,9 +17,14 @@ const {
   DP,
   STREET,
   UTB,
-  DEFAULT_PAGE
+  DEFAULT_PAGE,
+  UTB_RANDOM_SECTIONS
 } = require('./constants')
-const { TIME_AGO, DAYS_AGO } = require('./helperFunctions')
+const {
+  TIME_AGO,
+  DAYS_AGO,
+  getRandomIntInclusive
+} = require('./helperFunctions')
 
 // Pubsub init and ENUM def
 const pubsub = new PubSub()
@@ -49,6 +54,10 @@ const parseArticle = (
   if (isSectionArticle) {
     // this is a section article from the discover page
     article.tag = section
+
+    if (article.tag in TAG_TO_NAME) {
+      article.tag = TAG_TO_NAME[article.tag]
+    }
   } else {
     // home article/ search article/ setting article
     let TAGS = []
@@ -84,6 +93,7 @@ const parseArticle = (
     if (article.tag) {
       article.tag = article.tag.replace('-', ' ')
     } else {
+      // verify if this is ok
       article.tag = 'uncategorized'
     }
   }
@@ -255,6 +265,26 @@ class ContentAPI extends RESTDataSource {
   //   }
   // }
 
+  getUTBRandomArticle = async () => {
+    this.publication = UTB
+
+    const randomSection =
+      UTB_RANDOM_SECTIONS[
+        Math.floor(Math.random() * UTB_RANDOM_SECTIONS.length)
+      ]
+
+    const { section, pages } = randomSection
+
+    const { articles } = await this.get(`section/${section}.json`, {
+      page: getRandomIntInclusive(1, pages),
+      per_page: 1
+    })
+
+    const article = articles[0]
+
+    return parseArticle(article, UTB, section)
+  }
+
   getSearchArticles = async (filter, publication) => {
     this.publication = publication
 
@@ -289,6 +319,8 @@ const resolvers = {
       // console.log('article triggered')
       return dataSources.contentAPI.getSectionArticles(section, publication)
     },
+    utbRandomArticle: async (_, __, { dataSources }) =>
+      dataSources.contentAPI.getUTBRandomArticle(),
     searchArticles: async (_, { filter, publication }, { dataSources }) => {
       return dataSources.contentAPI.getSearchArticles(filter, publication)
     }

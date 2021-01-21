@@ -6,4 +6,7 @@ const TIME_AGO = published_at =>
 const DAYS_AGO = published_at =>
   moment().diff(moment(published_at, 'YYYY-MM-DD HH:mm:ss'), 'days')
 
-module.exports = { TIME_AGO, DAYS_AGO }
+const getRandomIntInclusive = (min, max) =>
+  Math.floor(Math.random() * (max - min + 1) + min)
+
+module.exports = { TIME_AGO, DAYS_AGO, getRandomIntInclusive }
