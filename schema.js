@@ -6,7 +6,7 @@ const typeDefs = gql`
   }
 
   type Query {
-    article(slug: String): Article
+    article(publication: String, slug: String, isRandom: Boolean): Article
     sectionArticles(section: String, publication: String): [Article]
     author(slug: String): Author
     homeArticles(first: Int, section: String, publication: String): [Article]

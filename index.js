@@ -128,9 +128,30 @@ class ContentAPI extends RESTDataSource {
     }
   }
 
-  async getArticle(slug) {
-    const { article } = (await this.get(`article/${slug}.json`)) || {}
-    return parseArticle(article)
+  getArticle = async (publication, slug, isRandom) => {
+    this.publication = publication
+
+    if (publication === UTB && isRandom) {
+      const randomSection =
+        UTB_RANDOM_SECTIONS[
+          Math.floor(Math.random() * UTB_RANDOM_SECTIONS.length)
+        ]
+
+      const { section, pages } = randomSection
+
+      const { articles } = await this.get(`section/${section}.json`, {
+        page: getRandomIntInclusive(1, pages),
+        per_page: 1
+      })
+
+      const article = articles[0]
+
+      return parseArticle(article, UTB, section)
+    }
+
+    const { article } = await this.get(`article/${slug}.json`)
+
+    return parseArticle(article, publication, '')
   }
 
   async getAuthor(slug) {
@@ -265,26 +286,6 @@ class ContentAPI extends RESTDataSource {
   //   }
   // }
 
-  getUTBRandomArticle = async () => {
-    this.publication = UTB
-
-    const randomSection =
-      UTB_RANDOM_SECTIONS[
-        Math.floor(Math.random() * UTB_RANDOM_SECTIONS.length)
-      ]
-
-    const { section, pages } = randomSection
-
-    const { articles } = await this.get(`section/${section}.json`, {
-      page: getRandomIntInclusive(1, pages),
-      per_page: 1
-    })
-
-    const article = articles[0]
-
-    return parseArticle(article, UTB, section)
-  }
-
   getSearchArticles = async (filter, publication) => {
     this.publication = publication
 
@@ -306,8 +307,8 @@ const resolvers = {
     }
   },
   Query: {
-    article: async (_, { slug }, { dataSources }) =>
-      dataSources.contentAPI.getArticle(slug),
+    article: async (_, { publication, slug, isRandom }, { dataSources }) =>
+      dataSources.contentAPI.getArticle(publication, slug, isRandom),
     homeArticles: async (
       _,
       { first, section, publication },
@@ -319,8 +320,6 @@ const resolvers = {
       // console.log('article triggered')
       return dataSources.contentAPI.getSectionArticles(section, publication)
     },
-    utbRandomArticle: async (_, __, { dataSources }) =>
-      dataSources.contentAPI.getUTBRandomArticle(),
     searchArticles: async (_, { filter, publication }, { dataSources }) => {
       return dataSources.contentAPI.getSearchArticles(filter, publication)
     }
