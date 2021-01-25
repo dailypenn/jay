@@ -159,6 +159,21 @@ class ContentAPI extends RESTDataSource {
     return { ...author, articles }
   }
 
+  decideDPCarouselArticle = async section => {
+    const { articles } = await this.get(`section/${section}.json`, {
+      page: 1,
+      per_page: 1
+    })
+
+    const article = articles[0]
+    const { published_at } = article
+    if (DAYS_AGO(published_at) >= 4) {
+      return null
+    }
+
+    return parseArticle(article, this.publication, section.split('-')[2])
+  }
+
   async getHomeArticles(
     first = 5,
     section = 'news',
@@ -170,30 +185,26 @@ class ContentAPI extends RESTDataSource {
       let newsNumber = 2
       let topArticles = []
 
-      const otherSections = [
-        'app-top-opinion',
-        'app-top-sports',
-        'app-top-multimedia'
-      ]
+      const opinionArticle = await this.decideDPCarouselArticle('app-top-opinion')
+      if (opinionArticle) {
+        topArticles.push(opinionArticle) 
+      } else {
+        newsNumber++
+      }
 
-      await Promise.all(
-        otherSections.map(async section => {
-          const { articles } = await this.get(`section/${section}.json`, {
-            page: 1,
-            per_page: 1
-          })
+      const sportsArticle = await this.decideDPCarouselArticle('app-top-sports')
+      if (sportsArticle) {
+        topArticles.push(sportsArticle) 
+      } else {
+        newsNumber++
+      }
 
-          const article = articles[0]
-          const { published_at } = article
-          if (DAYS_AGO(published_at) > 4) {
-            newsNumber++
-          } else {
-            topArticles.push(
-              parseArticle(article, publication, section.split('-')[2])
-            )
-          }
-        })
-      )
+      const multimediaArticle = await this.decideDPCarouselArticle('app-top-multimedia')
+      if (multimediaArticle) {
+        topArticles.push(multimediaArticle) 
+      } else {
+        newsNumber++
+      }
 
       const { articles } = await this.get(`section/app-top-news.json`, {
         page: 1,
