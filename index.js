@@ -36,7 +36,7 @@ const parseArticle = (
   section,
   isSectionArticle = false
 ) => {
-  const { published_at, authors, slug, tags } = article
+  const { published_at, authors, slug, tags, dominantMedia = {} } = article
 
   // generate the correct slug
   const firstIndex = published_at.indexOf('-')
@@ -49,6 +49,12 @@ const parseArticle = (
 
   // parse authors
   article.authors = authors.map(({ name, slug }) => ({ name, slug }))
+
+  if (dominantMedia.authors) {
+    article.dominantMedia.authors = dominantMedia.authors.map(
+      ({ name, slug }) => ({ name, slug })
+    )
+  }
 
   // parse tag
   if (isSectionArticle) {
@@ -185,23 +191,27 @@ class ContentAPI extends RESTDataSource {
       let newsNumber = 2
       let topArticles = []
 
-      const opinionArticle = await this.decideDPCarouselArticle('app-top-opinion')
+      const opinionArticle = await this.decideDPCarouselArticle(
+        'app-top-opinion'
+      )
       if (opinionArticle) {
-        topArticles.push(opinionArticle) 
+        topArticles.push(opinionArticle)
       } else {
         newsNumber++
       }
 
       const sportsArticle = await this.decideDPCarouselArticle('app-top-sports')
       if (sportsArticle) {
-        topArticles.push(sportsArticle) 
+        topArticles.push(sportsArticle)
       } else {
         newsNumber++
       }
 
-      const multimediaArticle = await this.decideDPCarouselArticle('app-top-multimedia')
+      const multimediaArticle = await this.decideDPCarouselArticle(
+        'app-top-multimedia'
+      )
       if (multimediaArticle) {
-        topArticles.push(multimediaArticle) 
+        topArticles.push(multimediaArticle)
       } else {
         newsNumber++
       }
