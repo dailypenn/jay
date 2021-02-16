@@ -39,13 +39,14 @@ const STREET_TAGS = [
 const UTB_TAGS = ['news', 'opinion', 'choose-your-own-adventure', 'quiz']
 
 const TAG_TO_NAME = {
-  'choose-your-own-adventure': 'adventure'
+  'choose-your-own-adventure': 'adventure',
+  'adventure-start': 'adventure'
 }
 
 const UTB_RANDOM_SECTIONS = [
   { section: 'news', pages: 1608 },
   { section: 'opinion', pages: 583 },
-  { section: 'choose-your-own-adventure', pages: 44 }
+  { section: 'adventure-start', pages: 4 }
 ]
 
 const DP = 'The Daily Pennsylvanian'
