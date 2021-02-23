@@ -9,4 +9,8 @@ const DAYS_AGO = published_at =>
 const getRandomIntInclusive = (min, max) =>
   Math.floor(Math.random() * (max - min + 1) + min)
 
-module.exports = { TIME_AGO, DAYS_AGO, getRandomIntInclusive }
+const addPhotoCredits = content => {
+  
+}
+
+module.exports = { TIME_AGO, DAYS_AGO, getRandomIntInclusive, addPhotoCredits }

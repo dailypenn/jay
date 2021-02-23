@@ -6,6 +6,8 @@ const {
   UserInputError
 } = require('apollo-server-express')
 const { RESTDataSource } = require('apollo-datasource-rest')
+const axios = require('axios')
+const HTMLParser = require('node-html-parser')
 
 const typeDefs = require('./schema')
 const {
@@ -23,7 +25,8 @@ const {
 const {
   TIME_AGO,
   DAYS_AGO,
-  getRandomIntInclusive
+  getRandomIntInclusive,
+  addPhotoCredits
 } = require('./helperFunctions')
 
 // Pubsub init and ENUM def
@@ -36,7 +39,35 @@ const parseArticle = (
   section,
   isSectionArticle = false
 ) => {
-  const { published_at, authors, slug, tags, dominantMedia = {} } = article
+  const {
+    published_at,
+    authors,
+    slug,
+    tags,
+    dominantMedia = {},
+    content
+  } = article
+
+  // add embedded photo credits
+  const root = HTMLParser.parse(content)
+
+  const imgs = root.querySelectorAll('.media-embed')
+
+  imgs.forEach(async img => {
+    const uuid = img.getAttribute('data-uuid')
+    // get the embedded author credit using the uuid
+    const { data } = await axios.get(
+      `https://www.thedp.com/search.json?a=1&s=${uuid}&ty=media`
+    )
+    const authors = data.items[0].authors.map(({ name }) => name)
+    const authorString = authors.join(', ')
+    const credit = authorString ? `Credit: ${authorString}` : ''
+    const newNode = `<figure>${HTMLParser.parse(
+      img.outerHTML
+    )}<figcaption>${credit}</figcaption></figure>`
+    root.exchangeChild(img, newNode)
+  })
+  article.content = root.toString()
 
   // generate the correct slug
   const firstIndex = published_at.indexOf('-')
