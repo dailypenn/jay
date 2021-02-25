@@ -7,10 +7,10 @@ const typeDefs = gql`
 
   type Query {
     article(publication: String, slug: String, isRandom: Boolean): Article
-    sectionArticles(section: String, publication: String): [Article]
+    sectionArticles(section: String, publication: String): [ArticleMetaData]
     author(slug: String): Author
-    homeArticles(first: Int, section: String, publication: String): [Article]
-    searchArticles(filter: String, publication: String): [Article]
+    homeArticles(first: Int, section: String, publication: String): [ArticleMetaData]
+    searchArticles(filter: String, publication: String): [ArticleMetaData]
   }
 
   type DominantMedia {
@@ -28,6 +28,17 @@ const typeDefs = gql`
     dominantMedia: DominantMedia
     authors: [Author]
     tag: String
+  }
+
+  type ArticleMetaData {
+    slug: String
+    headline: String
+    abstract: String
+    published_at: String
+    dominantMedia: DominantMedia
+    authors: [Author]
+    tag: String
+    content: String
   }
 
   type ArticleInfo {

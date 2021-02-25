@@ -1,21 +1,12 @@
 const express = require('express')
-const querystring = require('querystring')
 const {
   ApolloServer,
   PubSub,
-  UserInputError
 } = require('apollo-server-express')
 const { RESTDataSource } = require('apollo-datasource-rest')
-const axios = require('axios')
-const HTMLParser = require('node-html-parser')
 
 const typeDefs = require('./schema')
 const {
-  DP_TAGS,
-  DP_CEO_TAGS,
-  STREET_TAGS,
-  UTB_TAGS,
-  TAG_TO_NAME,
   DP,
   STREET,
   UTB,
@@ -23,125 +14,15 @@ const {
   UTB_RANDOM_SECTIONS
 } = require('./constants')
 const {
-  TIME_AGO,
   DAYS_AGO,
   getRandomIntInclusive,
-  addPhotoCredits
+  parseArticleMetaData,
+  parseArticle
 } = require('./helperFunctions')
 
 // Pubsub init and ENUM def
 const pubsub = new PubSub()
 const ARTICLE_EDITED = 'ARTICLE_EDITED'
-
-const parseArticle = (
-  article,
-  publication,
-  section,
-  isSectionArticle = false
-) => {
-  const {
-    published_at,
-    authors,
-    slug,
-    tags,
-    dominantMedia = {},
-    content
-  } = article
-
-  // add embedded photo credits
-  const root = HTMLParser.parse(content)
-
-  const imgs = root.querySelectorAll('.media-embed')
-
-  imgs.forEach(async img => {
-    const uuid = img.getAttribute('data-uuid')
-    // get the embedded author credit using the uuid
-    const { data } = await axios.get(
-      `https://www.thedp.com/search.json?a=1&s=${uuid}&ty=media`
-    )
-    const authors = data.items[0].authors.map(({ name }) => name)
-    const authorString = authors.join(', ')
-    const credit = authorString ? `Credit: ${authorString}` : ''
-    const newNode = `<figure>${HTMLParser.parse(
-      img.outerHTML
-    )}<figcaption>${credit}</figcaption></figure>`
-    root.exchangeChild(img, newNode)
-  })
-  article.content = root.toString()
-
-  // generate the correct slug
-  const firstIndex = published_at.indexOf('-')
-  const year = published_at.substring(0, firstIndex)
-  const month = published_at.substring(
-    firstIndex + 1,
-    published_at.indexOf('-', firstIndex + 1)
-  )
-  article.slug = `${year}/${month}/${slug}`
-
-  // parse authors
-  article.authors = authors.map(({ name, slug }) => ({ name, slug }))
-
-  if (dominantMedia.authors) {
-    article.dominantMedia.authors = dominantMedia.authors.map(
-      ({ name, slug }) => ({ name, slug })
-    )
-  }
-
-  // parse tag
-  if (isSectionArticle) {
-    // this is a section article from the discover page
-    article.tag = section
-
-    if (article.tag in TAG_TO_NAME) {
-      article.tag = TAG_TO_NAME[article.tag]
-    }
-  } else {
-    // home article/ search article/ setting article
-    let TAGS = []
-    switch (publication) {
-      case DP:
-        TAGS = DP_TAGS
-        break
-      case STREET:
-        TAGS = STREET_TAGS
-        break
-      default:
-        TAGS = UTB_TAGS
-    }
-
-    if (TAGS.includes(section)) {
-      article.tag = section
-    } else if (DP_CEO_TAGS.includes(section)) {
-      article.tag = section.split('-')[2]
-    } else {
-      const article_tags = tags.map(({ slug }) => slug)
-      for (let i = 0; i < TAGS.length; i++) {
-        if (article_tags.includes(TAGS[i])) {
-          article.tag = TAGS[i]
-          break
-        }
-      }
-    }
-
-    if (article.tag in TAG_TO_NAME) {
-      article.tag = TAG_TO_NAME[article.tag]
-    }
-
-    if (article.tag) {
-      article.tag = article.tag.replace('-', ' ')
-    } else {
-      // verify if this is ok
-      article.tag = 'uncategorized'
-    }
-  }
-
-  delete article.tags
-
-  // parse published_at
-  article.published_at = TIME_AGO(published_at)
-
-  return article
-}
 
 // TODO: LRU Cache on each section + checking whether a section's datetime
 // has been modified to delete/regenerate the cache
@@ -165,6 +46,11 @@ class ContentAPI extends RESTDataSource {
     }
   }
 
+  getAuthor = async slug => {
+    const { author, articles } = (await this.get(`staff/${slug}.json`)) || {}
+    return { ...author, articles }
+  }
+
   getArticle = async (publication, slug, isRandom) => {
     this.publication = publication
 
@@ -181,19 +67,15 @@ class ContentAPI extends RESTDataSource {
         per_page: 1
       })
 
-      const article = articles[0]
+      let article = articles[0]
+      article = await parseArticle(article, UTB, section)
 
-      return parseArticle(article, UTB, section)
+      return article
     }
 
     const { article } = await this.get(`article/${slug}.json`)
 
-    return parseArticle(article, publication, '')
-  }
-
-  async getAuthor(slug) {
-    const { author, articles } = (await this.get(`staff/${slug}.json`)) || {}
-    return { ...author, articles }
+    return await parseArticle(article, publication, '')
   }
 
   decideDPCarouselArticle = async section => {
@@ -208,14 +90,14 @@ class ContentAPI extends RESTDataSource {
       return null
     }
 
-    return parseArticle(article, this.publication, section.split('-')[2])
+    return parseArticleMetaData(article, this.publication, section.split('-')[2])
   }
 
-  async getHomeArticles(
+  getHomeArticles = async (
     first = 5,
     section = 'news',
     publication = 'The Daily Pennsylvanian'
-  ) {
+  ) => {
     this.publication = publication
 
     if (publication === DP && section === 'top') {
@@ -252,7 +134,7 @@ class ContentAPI extends RESTDataSource {
         per_page: newsNumber
       })
       const newsArticles = articles.map(article =>
-        parseArticle(article, publication, 'news')
+        parseArticleMetaData(article, publication, 'news')
       )
 
       return newsArticles.concat(topArticles)
@@ -262,14 +144,14 @@ class ContentAPI extends RESTDataSource {
       page: 1,
       per_page: first
     })
-    return articles.map(article => parseArticle(article, publication, section))
+    return articles.map(article => parseArticleMetaData(article, publication, section))
   }
 
   // TODO: add page number / support fetchMore
-  async getSectionArticles(
+  getSectionArticles = async (
     section = 'news',
     publication = 'The Daily Pennsylvanian'
-  ) {
+  ) => {
     this.publication = publication
 
     const { articles } = await this.get(`section/${section}.json`, {
@@ -277,8 +159,21 @@ class ContentAPI extends RESTDataSource {
       per_page: DEFAULT_PAGE
     })
     return articles.map(article =>
-      parseArticle(article, publication, section, true)
+      parseArticleMetaData(article, publication, section, true)
     )
+  }
+
+  getSearchArticles = async (filter, publication) => {
+    this.publication = publication
+
+    if (filter) {
+      const { items: articles } = await this.get(
+        `search.json?a=1&s=${filter}&ty=article`
+      )
+      return articles.map(article => parseArticleMetaData(article, publication, ''))
+    }
+
+    return []
   }
 
   // async getSectionArticles(
@@ -337,19 +232,6 @@ class ContentAPI extends RESTDataSource {
   //     hasNextPage: true
   //   }
   // }
-
-  getSearchArticles = async (filter, publication) => {
-    this.publication = publication
-
-    if (filter) {
-      const { items: articles } = await this.get(
-        `search.json?a=1&s=${filter}&ty=article`
-      )
-      return articles.map(article => parseArticle(article, publication, ''))
-    }
-
-    return []
-  }
 }
 
 const resolvers = {
